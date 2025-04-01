@@ -1,6 +1,6 @@
 # FireRFS - Firebase Reconnaissance & Security Testing Tool
 
-![FireRFS Banner](https://img.shields.io/badge/FireRFS-Firebase%20Security%20Testing-red)
+[![FireRFS Banner](https://img.shields.io/badge/FireRFS-Firebase%20Security%20Testing-red)](https://github.com/rfs85/FireRFS)
 ![Version](https://img.shields.io/badge/Version-1.1.0-blue)
 ![Python](https://img.shields.io/badge/Python-3.7%2B-yellow)
 ![License](https://img.shields.io/badge/License-MIT-green)
@@ -28,8 +28,8 @@ FireRFS is a comprehensive tool for Firebase security assessment and data exfilt
 
 ```bash
 # Clone the repository
-git clone https://github.com/username/firerfs.git
-cd firerfs
+git clone https://github.com/rfs85/FireRFS.git
+cd FireRFS
 
 # Install required dependencies
 pip install -r requirements.txt
@@ -133,7 +133,7 @@ All output is saved to a timestamped directory for easy reference.
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Contributions are welcome! Please feel free to submit a Pull Request to [our GitHub repository](https://github.com/rfs85/FireRFS).
 
 1. Fork the repository
 2. Create your feature branch (`git checkout -b feature/amazing-feature`)
