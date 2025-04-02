@@ -141,9 +141,6 @@ class FireRFS:
         
         return self.results
     
-    # Existing methods like print_terminal_report(), test_api_key_restrictions(), etc. 
-    # would remain the same as in the previous implementation
-
     def generate_html_report(self, output_file, extracted_keys=None):
         """Generate an HTML report with extracted keys if available"""
         self.console.print("[dim]Generating HTML report...[/dim]")
@@ -159,6 +156,55 @@ class FireRFS:
             return True
         except Exception as e:
             self.console.print(f"[bold red]Error generating HTML report: {str(e)}[/bold red]")
+            return False
+    
+    def generate_text_report(self, output_file):
+        """Generate a text report of the security assessment
+        
+        Args:
+            output_file (str): Path to save the text report
+        
+        Returns:
+            bool: True if report generation was successful
+        """
+        try:
+            with open(output_file, 'w') as f:
+                # Write basic report information
+                f.write("FireRFS - Firebase Security Assessment Report\n")
+                f.write("=" * 50 + "\n\n")
+                
+                # Metadata
+                f.write("Metadata:\n")
+                f.write(f"Scan Time: {self.results['metadata'].get('scan_time', 'Unknown')}\n")
+                f.write(f"Project ID: {self.project_id or 'Not Specified'}\n\n")
+                
+                # Vulnerabilities
+                f.write("Vulnerabilities:\n")
+                vulnerabilities = self.results.get('vulnerabilities', [])
+                if vulnerabilities:
+                    for vuln in vulnerabilities:
+                        f.write(f"- {vuln.get('severity', 'UNKNOWN')}: {vuln.get('description', 'Unspecified vulnerability')}\n")
+                else:
+                    f.write("No vulnerabilities detected.\n")
+                
+                # Services
+                f.write("\nService Accessibility:\n")
+                services = self.results.get('services', {})
+                for service, details in services.items():
+                    status = "Accessible" if details.get('accessible', False) else "Not Accessible"
+                    f.write(f"- {service.capitalize()}: {status}\n")
+                
+                # Restrictions
+                f.write("\nAPI Key Restrictions:\n")
+                restrictions = self.results.get('restrictions', {})
+                for restriction, value in restrictions.items():
+                    if not restriction.endswith('_details'):
+                        f.write(f"- {restriction.replace('_', ' ').title()}: {value}\n")
+            
+            self.console.print(f"[green]Text report saved to {output_file}[/green]")
+            return True
+        except Exception as e:
+            self.console.print(f"[bold red]Error generating text report: {str(e)}[/bold red]")
             return False
     
     def run_assessment_with_steps(self):
@@ -242,7 +288,6 @@ class FireRFS:
         
         return self.results
     
-    # Placeholder methods for various assessment steps
     def test_api_key_restrictions(self):
         """Placeholder for testing API key restrictions"""
         self.results["restrictions"] = {
@@ -290,7 +335,10 @@ class FireRFS:
         """Placeholder for extracting keys and tokens"""
         return {
             "api_keys": [self.api_key],
-            "tokens": []
+            "tokens": [],
+            "passwords": [],
+            "secrets": [],
+            "other_credentials": []
         }
     
     def identify_advanced_vulnerabilities(self):
@@ -306,6 +354,14 @@ class FireRFS:
     def print_terminal_report(self):
         """Placeholder for printing terminal report"""
         self.console.print("[bold green]Security Assessment Complete[/bold green]")
+    
+    def _check_public_db_access(self):
+        """Placeholder for checking public database access"""
+        pass
+    
+    def _check_storage_permissions(self):
+        """Placeholder for checking storage permissions"""
+        pass
 
 # Add main block if needed
 if __name__ == "__main__":
