@@ -1,0 +1,62 @@
+# FireRFS Example Configuration
+
+# Scan settings
+scan_settings:
+  timeout: 30  # Timeout in seconds for each test
+  max_depth: 5  # Maximum depth for recursive scans
+  parallel: true  # Enable parallel scanning
+  retry_attempts: 3  # Number of retry attempts for failed requests
+
+# Target services to scan
+services:
+  - firestore
+  - storage
+  - database
+  - functions
+  - hosting
+
+# Security rules to check
+security_rules:
+  - public_access
+  - authentication
+  - data_validation
+  - rate_limiting
+  - cors_configuration
+
+# Custom vulnerability checks
+custom_checks:
+  - name: sensitive_data_exposure
+    pattern: "(?i)(password|secret|key|token)"
+    severity: high
+  
+  - name: insecure_configuration
+    pattern: "(?i)(test|debug|development)"
+    severity: medium
+
+# Report configuration
+reporting:
+  format: html
+  include_metadata: true
+  save_raw_results: true
+  output_directory: "./reports"
+
+# Logging configuration
+logging:
+  level: INFO
+  file: firerfs.log
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+
+# Network settings
+network:
+  timeout: 10
+  max_retries: 3
+  proxy:
+    enabled: false
+    http: "http://proxy.example.com:8080"
+    https: "https://proxy.example.com:8080"
+
+# Authentication
+auth:
+  service_account: null  # Path to service account JSON file
+  api_key: null  # Firebase API key
+  project_id: null  # Firebase project ID 

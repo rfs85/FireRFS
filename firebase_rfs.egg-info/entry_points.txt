@@ -1,2 +1,0 @@
-[console_scripts]
-firerfs = firebase_rfs.cli:main

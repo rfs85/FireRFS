@@ -1,29 +1,35 @@
 """
-FireRFS - Firebase Reconnaissance & Security Testing Tool
-Advanced Firebase Security Assessment Framework
+FireRFS - Firebase Security Assessment Tool
 """
 
-__version__ = "1.2.0"
-__author__ = "FireRFS Team"
-__email__ = "support@firerfs.com"
+__version__ = '1.2.0'
+__author__ = 'FireRFS Team'
+__email__ = 'contact@firerfs.com'
+__description__ = 'A comprehensive security assessment tool for Firebase applications'
 
-from .firebase_rfs import FireRFS
-from .integration import FireRFSIntegration
+from firebase_rfs.core.scanner import FirebaseScanner
+from firebase_rfs.core.analyzer import SecurityAnalyzer
+from firebase_rfs.utils.reporting import ReportGenerator
+from firebase_rfs.utils.helpers import (
+    validate_api_key,
+    validate_project_id,
+    load_config,
+    setup_logging
+)
 
-# Import utility functions
-def create_archive(firerfs_instance):
-    """Create an archive of assessment results"""
-    # This is a placeholder function that will be implemented later
-    pass
-
-def run_auto_exploitation(firerfs_instance):
-    """Run automated exploitation based on discovered vulnerabilities"""
-    # This is a placeholder function that will be implemented later
-    pass
+# Set up default logging
+setup_logging()
 
 __all__ = [
-    'FireRFS',
-    'FireRFSIntegration',
-    'create_archive',
-    'run_auto_exploitation',
+    'FirebaseScanner',
+    'SecurityAnalyzer',
+    'ReportGenerator',
+    'validate_api_key',
+    'validate_project_id',
+    'load_config',
+    'setup_logging',
+    '__version__',
+    '__author__',
+    '__email__',
+    '__description__'
 ]

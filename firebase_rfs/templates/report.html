@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FireRFS Security Assessment Report</title>
+    <style>
+        :root {
+            --primary-color: #4285f4;
+            --secondary-color: #34a853;
+            --warning-color: #fbbc05;
+            --danger-color: #ea4335;
+            --text-color: #202124;
+            --background-color: #ffffff;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: var(--text-color);
+            background-color: var(--background-color);
+            margin: 0;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            border-radius: 8px;
+        }
+        
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .vulnerability {
+            margin-bottom: 20px;
+            padding: 15px;
+            border-radius: 4px;
+        }
+        
+        .vulnerability.high {
+            border-left: 4px solid var(--danger-color);
+            background-color: #ffebee;
+        }
+        
+        .vulnerability.medium {
+            border-left: 4px solid var(--warning-color);
+            background-color: #fff3e0;
+        }
+        
+        .vulnerability.low {
+            border-left: 4px solid var(--secondary-color);
+            background-color: #e8f5e9;
+        }
+        
+        .recommendation {
+            background-color: #e3f2fd;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+        }
+        
+        .metadata {
+            font-size: 0.9em;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>FireRFS Security Assessment Report</h1>
+            <p>Generated at: {{ results.generated_at }}</p>
+            <p>FireRFS Version: {{ results.firerfs_version }}</p>
+        </div>
+        
+        <div class="section">
+            <h2>Executive Summary</h2>
+            <p>This report contains the findings from a security assessment of your Firebase application.</p>
+            
+            <h3>Key Findings</h3>
+            <ul>
+                {% set high_count = results.vulnerabilities | selectattr("severity", "equalto", "high") | list | length %}
+                {% set medium_count = results.vulnerabilities | selectattr("severity", "equalto", "medium") | list | length %}
+                {% set low_count = results.vulnerabilities | selectattr("severity", "equalto", "low") | list | length %}
+                <li>High Severity Issues: {{ high_count }}</li>
+                <li>Medium Severity Issues: {{ medium_count }}</li>
+                <li>Low Severity Issues: {{ low_count }}</li>
+            </ul>
+        </div>
+        
+        <div class="section">
+            <h2>Vulnerabilities</h2>
+            {% for vuln in results.vulnerabilities %}
+            <div class="vulnerability {{ vuln.severity }}">
+                <h3>{{ vuln.title }}</h3>
+                <p><strong>Severity:</strong> {{ vuln.severity | upper }}</p>
+                <p><strong>Description:</strong> {{ vuln.description }}</p>
+                {% if vuln.recommendation %}
+                <p><strong>Recommendation:</strong> {{ vuln.recommendation }}</p>
+                {% endif %}
+                {% if vuln.references %}
+                <p><strong>References:</strong></p>
+                <ul>
+                    {% for ref in vuln.references %}
+                    <li><a href="{{ ref }}">{{ ref }}</a></li>
+                    {% endfor %}
+                </ul>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        
+        <div class="section">
+            <h2>Recommendations</h2>
+            {% for rec in results.recommendations %}
+            <div class="recommendation">
+                <p>{{ rec }}</p>
+            </div>
+            {% endfor %}
+        </div>
+        
+        <div class="section">
+            <h2>Metadata</h2>
+            <div class="metadata">
+                <p><strong>Scan Time:</strong> {{ results.metadata.scan_time }}</p>
+                <p><strong>Scan Mode:</strong> {{ results.metadata.scan_mode }}</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html> 

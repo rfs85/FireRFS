@@ -11,6 +11,8 @@ import json
 import argparse
 import traceback
 from datetime import datetime
+from pathlib import Path
+from typing import Optional, Dict, Any
 
 # Rich library for enhanced console output
 from rich.console import Console
@@ -21,6 +23,17 @@ from rich.table import Table
 
 # Import core assessment modules
 from . import FireRFS, FireRFSIntegration, create_archive, run_auto_exploitation, __version__
+
+# Import new package components
+from firebase_rfs.core.scanner import FirebaseScanner
+from firebase_rfs.core.analyzer import SecurityAnalyzer
+from firebase_rfs.utils.reporting import ReportGenerator
+from firebase_rfs.utils.helpers import (
+    load_config,
+    validate_api_key,
+    validate_project_id,
+    setup_logging
+)
 
 # Version and configuration
 VERSION = __version__
@@ -311,64 +324,191 @@ class FireRFSCLI:
         
         return results
 
-def main():
-    """
-    Main entry point for FireRFS CLI
-    """
-    parser = argparse.ArgumentParser(description="FireRFS - Firebase Security Assessment Tool")
+def parse_args() -> argparse.Namespace:
+    """Parse command line arguments."""
+    parser = argparse.ArgumentParser(
+        description="FireRFS - Firebase Security Assessment Tool"
+    )
     
-    # Core arguments
-    parser.add_argument("-k", "--api-key", help="Firebase API key")
-    parser.add_argument("-p", "--project-id", help="Firebase Project ID")
+    parser.add_argument(
+        "-k", "--api-key",
+        help="Firebase API key"
+    )
     
-    # Scanning mode arguments
-    parser.add_argument("--interactive", action="store_true", help="Run in interactive mode")
-    parser.add_argument("--scan-mode", choices=['quick', 'comprehensive'], default='comprehensive', 
-                        help="Scanning depth and comprehensiveness")
+    parser.add_argument(
+        "-p", "--project-id",
+        help="Firebase Project ID"
+    )
+    
+    parser.add_argument(
+        "--interactive",
+        action="store_true",
+        help="Run in interactive mode"
+    )
+    
+    parser.add_argument(
+        "--scan-mode",
+        choices=["quick", "comprehensive"],
+        help="Scanning depth and comprehensiveness"
+    )
+    
+    parser.add_argument(
+        "--data-dump",
+        action="store_true",
+        help="Dump accessible data"
+    )
+    
+    parser.add_argument(
+        "--auto-exploit",
+        action="store_true",
+        help="Attempt to exploit vulnerabilities"
+    )
+    
+    parser.add_argument(
+        "--config",
+        help="Path to custom configuration file"
+    )
+    
+    return parser.parse_args()
+
+def interactive_mode() -> Dict[str, Any]:
+    """Run the tool in interactive mode."""
+    console.print("\n[bold blue]FireRFS Interactive Mode[/bold blue]")
+    
+    config = {}
+    
+    # Get API key
+    while True:
+        api_key = console.input("\nEnter Firebase API key: ")
+        if validate_api_key(api_key):
+            config['api_key'] = api_key
+            break
+        console.print("[red]Invalid API key format. Please try again.[/red]")
+    
+    # Get project ID (optional)
+    project_id = console.input("\nEnter Firebase Project ID (optional): ")
+    if project_id and validate_project_id(project_id):
+        config['project_id'] = project_id
+    
+    # Get scan mode
+    config['scan_mode'] = console.input(
+        "\nSelect scan mode ([cyan]quick[/cyan]/[cyan]comprehensive[/cyan], default: quick): "
+    ).lower() or "quick"
     
     # Additional options
-    parser.add_argument("--data-dump", action="store_true", help="Dump accessible data")
-    parser.add_argument("--auto-exploit", action="store_true", help="Attempt to exploit vulnerabilities")
-    parser.add_argument("--config", help="Path to custom configuration file")
+    config['data_dump'] = console.input(
+        "\nDump accessible data? ([cyan]y[/cyan]/[cyan]n[/cyan], default: n): "
+    ).lower() == 'y'
     
-    # Parse arguments
-    args = parser.parse_args()
+    config['auto_exploit'] = console.input(
+        "\nAttempt to exploit vulnerabilities? ([cyan]y[/cyan]/[cyan]n[/cyan], default: n): "
+    ).lower() == 'y'
     
-    # Initialize scanner
-    scanner = FireRFSCLI(args.config)
-    
+    return config
+
+def main() -> None:
+    """Main entry point for the CLI."""
     try:
-        if args.interactive:
-            # Run interactive mode
-            results = scanner.interactive_scan()
-        else:
-            # Validate API key is provided
-            if not args.api_key:
-                console.print("[bold red]Error: API key is required[/bold red]")
-                parser.print_help()
-                return 1
-            
-            # Run security assessment
-            results = scanner.run_security_assessment(
-                args.api_key, 
-                {
-                    'project_id': args.project_id,
-                    'scan_mode': args.scan_mode,
-                    'data_dump': args.data_dump,
-                    'auto_exploit': args.auto_exploit
-                }
-            )
+        args = parse_args()
+        config = {}
         
-        # Exit with appropriate status
-        return 0 if results else 1
+        # Load configuration from file if provided
+        if args.config:
+            config = load_config(args.config)
+        
+        # Interactive mode takes precedence
+        if args.interactive:
+            config.update(interactive_mode())
+        else:
+            # Use command line arguments
+            if args.api_key:
+                if not validate_api_key(args.api_key):
+                    console.print("[red]Error: Invalid API key format[/red]")
+                    sys.exit(1)
+                config['api_key'] = args.api_key
+            
+            if args.project_id:
+                if not validate_project_id(args.project_id):
+                    console.print("[red]Error: Invalid project ID format[/red]")
+                    sys.exit(1)
+                config['project_id'] = args.project_id
+            
+            config['scan_mode'] = args.scan_mode or "quick"
+            config['data_dump'] = args.data_dump
+            config['auto_exploit'] = args.auto_exploit
+        
+        # Validate required configuration
+        if 'api_key' not in config:
+            console.print("[red]Error: API key is required[/red]")
+            sys.exit(1)
+        
+        # Initialize components
+        scanner = FirebaseScanner(
+            api_key=config['api_key'],
+            project_id=config.get('project_id')
+        )
+        analyzer = SecurityAnalyzer()
+        report_gen = ReportGenerator()
+        
+        # Run security assessment
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            transient=True
+        ) as progress:
+            progress.add_task(
+                description="Initializing Firebase Security Assessment...",
+                total=None
+            )
+            
+            console.print(f"\nRunning {config['scan_mode']} assessment (limited tests)")
+            
+            # Step 1: API Key Analysis
+            console.print("\nStep 1/4: Testing API Key Restrictions...")
+            key_results = scanner.check_api_key_restrictions()
+            
+            # Step 2: Service Accessibility
+            console.print("\nStep 2/4: Checking Service Accessibility...")
+            service_results = scanner.check_service_accessibility()
+            
+            # Step 3: Security Rules
+            console.print("\nStep 3/4: Analyzing Security Rules...")
+            rules_results = scanner.analyze_security_rules()
+            
+            # Step 4: Vulnerability Scan
+            console.print("\nStep 4/4: Identifying Basic Vulnerabilities...")
+            vuln_results = scanner.scan_vulnerabilities(
+                mode=config['scan_mode']
+            )
+            
+            # Analyze results
+            analysis = analyzer.analyze_results({
+                'api_key': key_results,
+                'services': service_results,
+                'rules': rules_results,
+                'vulnerabilities': vuln_results
+            })
+            
+            # Generate report
+            console.print("Security Assessment Complete")
+            console.print("Generating HTML report...")
+            report_file = report_gen.generate_html_report(
+                analysis,
+                output_dir="."
+            )
+            console.print(f"HTML report saved to {report_file}")
+            
+            progress.add_task(
+                description="Security Assessment Completed Successfully!",
+                total=None
+            )
     
     except KeyboardInterrupt:
-        console.print("\n[yellow]Operation cancelled by user.[/yellow]")
-        return 1
+        console.print("\n[yellow]Assessment interrupted by user[/yellow]")
+        sys.exit(1)
     except Exception as e:
-        console.print(f"[bold red]Unexpected error: {e}[/bold red]")
-        traceback.print_exc()
-        return 1
+        console.print(f"\n[red]Error: {str(e)}[/red]")
+        sys.exit(1)
 
 if __name__ == "__main__":
-    sys.exit(main())
+    main()
