@@ -2,157 +2,381 @@
 
 """
 FireRFS - Firebase Reconnaissance & Security Testing Tool
-A tool for Firebase security assessment and data exfiltration
+Advanced Firebase Security Assessment Framework
 
-Author: Security Researcher
-Version: 1.1.0
+Features:
+- Comprehensive Firebase project scanning
+- Multi-vector vulnerability detection
+- Detailed reporting and analysis
 """
 
-import argparse
-import json
-import sys
 import os
-import time
+import sys
+import json
+import argparse
+import traceback
 from datetime import datetime
+
+# Rich library for enhanced console output
 from rich.console import Console
-from rich.prompt import Confirm
+from rich.panel import Panel
+from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TimeElapsedColumn
+from rich.syntax import Syntax
+from rich.table import Table
 
-# Import the necessary modules
-from firebase_rfs import FireRFS
-from integration import FireRFSIntegration, create_archive, run_auto_exploitation
+# Import core assessment modules
+try:
+    from firebase_rfs import FireRFS
+    from integration import FireRFSIntegration, create_archive, run_auto_exploitation
+except ImportError:
+    print("Error: Required modules not found. Ensure all project files are present.")
+    sys.exit(1)
 
-# Version information
-VERSION = "1.1.0"
+# Version and configuration
+VERSION = "1.2.0"
 console = Console()
 
-def banner():
-    """Display the tool banner"""
-    console.print()
-    console.print("""[bold red]
-    ███████╗██╗██████╗ ███████╗    ██████╗ ███████╗███████╗
-    ██╔════╝██║██╔══██╗██╔════╝    ██╔══██╗██╔════╝██╔════╝
-    █████╗  ██║██████╔╝█████╗      ██████╔╝█████╗  ███████╗
-    ██╔══╝  ██║██╔══██╗██╔══╝      ██╔══██╗██╔══╝  ╚════██║
-    ██║     ██║██║  ██║███████╗    ██║  ██║██║     ███████║
-    ╚═╝     ╚═╝╚═╝  ╚═╝╚══════╝    ╚═╝  ╚═╝╚═╝     ╚══════╝
-    [/bold red]""")
-    console.print("[bold]Firebase Reconnaissance & Security Testing Tool[/bold]", justify="center")
-    console.print(f"v{VERSION}", justify="center")
-    console.print()
-    console.print("[dim]A tool for Firebase security testing and data exfiltration[/dim]", justify="center")
-    console.print()
-
-def main():
-    """Main function"""
-    # Print the banner
-    banner()
+class FireRFSScanner:
+    """
+    Advanced FireRFS scanning framework with enhanced capabilities
+    """
     
-    # Parse arguments
-    parser = argparse.ArgumentParser(description="Firebase Reconnaissance & Security Testing Tool")
-    parser.add_argument("-k", "--key", help="Firebase API key", required=True)
-    parser.add_argument("-p", "--project-id", help="Firebase project ID (will be enumerated if not provided)")
-    parser.add_argument("-s", "--services", help="Services to test (comma-separated list: database,firestore,auth,storage,functions,hosting)")
-    parser.add_argument("-o", "--output", help="Output directory", default=None)
-    parser.add_argument("-d", "--data", help="Dump all accessible data", action="store_true")
-    parser.add_argument("--html", help="Generate HTML report", action="store_true", default=True)
-    parser.add_argument("--no-html", help="Do not generate HTML report", action="store_false", dest="html")
-    parser.add_argument("--text", help="Generate text report", action="store_true")
-    parser.add_argument("--detailed", help="Detailed output", action="store_true")
-    parser.add_argument("--archive", help="Create ZIP archive of results", action="store_true")
-    parser.add_argument("--auto-exploit", help="Attempt to automatically exploit vulnerabilities (USE WITH CAUTION - Only on systems you own or have permission to test)", action="store_true")
-    parser.add_argument("--exploit-critical-only", help="Only exploit critical vulnerabilities with auto-exploit option", action="store_true")
-    parser.add_argument("--steps", help="Save results for each step to separate files", action="store_true", default=True)
-    parser.add_argument("--no-steps", help="Don't save intermediate step results", action="store_false", dest="steps")
-    
-    # Add modes for specific testing types
-    group = parser.add_argument_group('Testing Modes')
-    group.add_argument("--recon-only", help="Only perform reconnaissance, no vulnerability testing", action="store_true")
-    group.add_argument("--vuln-only", help="Only perform vulnerability testing, skip reconnaissance", action="store_true")
-    group.add_argument("--quick", help="Perform quick testing (less comprehensive)", action="store_true")
-    group.add_argument("--thorough", help="Perform thorough testing (more comprehensive, slower)", action="store_true")
-    
-    args = parser.parse_args()
-    
-    # Ask for confirmation if auto-exploit is enabled
-    if args.auto_exploit:
-        console.print("[bold red]WARNING: Auto-exploitation is enabled. This will attempt to exploit vulnerabilities in the target system.[/bold red]")
-        console.print("[bold red]Only proceed if you have proper authorization to test this system.[/bold red]")
-        if not Confirm.ask("Do you want to continue?"):
-            console.print("[yellow]Operation cancelled by user[/yellow]")
-            return 1
-    
-    try:
-        # Parse services
-        services = None
-        if args.services:
-            services = args.services.split(",")
+    def __init__(self, config_path=None):
+        """
+        Initialize the FireRFS scanner with optional configuration
         
-        # Create output directory
-        output_dir = args.output
-        if not output_dir:
-            output_dir = f"firerfs_results_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        Args:
+            config_path (str, optional): Path to configuration file
+        """
+        self.console = Console()
+        self.config = self._load_config(config_path)
+        self.version = VERSION
+    
+    def _load_config(self, config_path=None):
+        """
+        Load configuration from file or use default settings
         
-        if not os.path.exists(output_dir):
-            os.makedirs(output_dir)
+        Args:
+            config_path (str, optional): Path to JSON configuration file
         
-        # Initialize FireRFS
-        firerfs = FireRFS(
-            api_key=args.key,
-            project_id=args.project_id,
-            services=services,
-            html_report=args.html,
-            detailed=args.detailed,
-            data_dump=args.data,
-            output_dir=output_dir
+        Returns:
+            dict: Configuration dictionary
+        """
+        default_config = {
+            "default_services": [
+                "database", "firestore", "auth", 
+                "storage", "functions", "hosting"
+            ],
+            "scan_modes": {
+                "quick": {
+                    "depth": "low",
+                    "services": ["database", "auth"]
+                },
+                "comprehensive": {
+                    "depth": "high",
+                    "services": ["database", "firestore", "auth", "storage", "functions", "hosting"]
+                }
+            },
+            "vulnerability_thresholds": {
+                "critical": 3,
+                "high": 5,
+                "medium": 7
+            }
+        }
+        
+        if config_path and os.path.exists(config_path):
+            try:
+                with open(config_path, 'r') as config_file:
+                    user_config = json.load(config_file)
+                    # Merge user config with default config
+                    default_config.update(user_config)
+            except (json.JSONDecodeError, IOError) as e:
+                self.console.print(f"[bold red]Error loading configuration: {e}[/bold red]")
+        
+        return default_config
+    
+    def validate_api_key(self, api_key):
+        """
+        Perform comprehensive validation of Firebase API key
+        
+        Args:
+            api_key (str): Firebase API key to validate
+        
+        Returns:
+            bool: Whether the key passes validation
+        """
+        if not api_key:
+            return False
+        
+        # Firebase API key typical characteristics
+        checks = [
+            len(api_key) > 35,          # Minimum length
+            len(api_key) < 45,          # Maximum length
+            api_key.startswith('AIza'),  # Typical Firebase API key prefix
+            all(c.isalnum() or c in ['-', '_'] for c in api_key)  # Valid characters
+        ]
+        
+        return all(checks)
+    
+    def run_security_assessment(self, api_key, options=None):
+        """
+        Perform a comprehensive security assessment of a Firebase project
+        
+        Args:
+            api_key (str): Firebase API key
+            options (dict, optional): Assessment configuration options
+        
+        Returns:
+            dict: Comprehensive assessment results
+        """
+        # Validate input
+        if not self.validate_api_key(api_key):
+            self.console.print("[bold red]Invalid Firebase API Key[/bold red]")
+            return None
+        
+        # Merge default and user-provided options
+        default_options = {
+            "project_id": None,
+            "scan_mode": "comprehensive",
+            "services": None,
+            "data_dump": False,
+            "auto_exploit": False,
+            "output_dir": None
+        }
+        assessment_options = {**default_options, **(options or {})}
+        
+        # Determine services to scan
+        services = (
+            assessment_options['services'] or 
+            self.config['scan_modes'][assessment_options['scan_mode']]['services']
         )
         
-        # Create integration instance
-        integration = FireRFSIntegration(firerfs)
+        # Prepare output directory
+        output_dir = (
+            assessment_options['output_dir'] or 
+            f"firerfs_results_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        )
+        os.makedirs(output_dir, exist_ok=True)
         
-        # Run appropriate assessment based on mode
-        if args.recon_only:
-            console.print("[bold blue]Running reconnaissance only mode...[/bold blue]")
-            firerfs.run_assessment_with_steps()
-        elif args.vuln_only:
-            console.print("[bold blue]Running vulnerability assessment only mode...[/bold blue]")
-            firerfs.identify_advanced_vulnerabilities()
-        elif args.quick:
-            console.print("[bold blue]Running quick assessment mode...[/bold blue]")
-            firerfs.run_quick_assessment()
-        elif args.thorough:
-            console.print("[bold blue]Running thorough assessment mode...[/bold blue]")
-            integration.run_integrated_assessment()
+        # Progress tracking
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            TimeElapsedColumn()
+        ) as progress:
+            # Initialize progress
+            task = progress.add_task("[green]Initializing Firebase Security Assessment...", total=100)
+            
+            try:
+                # Initialize FireRFS
+                progress.update(task, description="[yellow]Preparing assessment environment...")
+                firerfs = FireRFS(
+                    api_key=api_key,
+                    project_id=assessment_options['project_id'],
+                    services=services,
+                    html_report=True,
+                    detailed=True,
+                    data_dump=assessment_options['data_dump'],
+                    output_dir=output_dir
+                )
+                
+                # Create integration instance
+                integration = FireRFSIntegration(firerfs)
+                
+                # Update progress
+                progress.update(task, advance=20, description="[yellow]Running comprehensive assessment...")
+                
+                # Perform assessment based on scan mode
+                if assessment_options['scan_mode'] == 'quick':
+                    results = firerfs.run_quick_assessment()
+                else:
+                    results = integration.run_integrated_assessment()
+                
+                # Optional auto-exploitation
+                if assessment_options['auto_exploit']:
+                    progress.update(task, advance=20, description="[yellow]Performing vulnerability exploitation...")
+                    run_auto_exploitation(firerfs)
+                
+                # Create results archive
+                progress.update(task, advance=20, description="[yellow]Creating results archive...")
+                create_archive(firerfs)
+                
+                # Finalize progress
+                progress.update(task, completed=100, description="[green]Security Assessment Completed Successfully!")
+                
+                return results
+            
+            except Exception as e:
+                progress.update(task, description="[bold red]Assessment Failed[/bold red]")
+                self.console.print(f"[bold red]Security Assessment Error: {e}[/bold red]")
+                traceback.print_exc()
+                return None
+    
+    def generate_risk_report(self, results):
+        """
+        Generate a detailed risk assessment report
+        
+        Args:
+            results (dict): Security assessment results
+        
+        Returns:
+            str: Formatted risk report
+        """
+        if not results:
+            return "No assessment results available."
+        
+        # Create risk report panel
+        risk_report = Panel(
+            self._analyze_vulnerabilities(results),
+            title="[bold]Firebase Security Risk Assessment[/bold]",
+            border_style="red"
+        )
+        
+        return risk_report
+    
+    def _analyze_vulnerabilities(self, results):
+        """
+        Analyze and categorize vulnerabilities
+        
+        Args:
+            results (dict): Security assessment results
+        
+        Returns:
+            str: Formatted vulnerability analysis
+        """
+        vulnerabilities = results.get('vulnerabilities', [])
+        
+        # Categorize vulnerabilities by severity
+        severity_categories = {
+            'CRITICAL': [],
+            'HIGH': [],
+            'MEDIUM': [],
+            'LOW': [],
+            'INFO': []
+        }
+        
+        for vuln in vulnerabilities:
+            severity = vuln.get('severity', 'INFO')
+            severity_categories[severity].append(vuln)
+        
+        # Generate detailed report
+        report = "Vulnerability Breakdown:\n\n"
+        for severity, vulns in severity_categories.items():
+            color_map = {
+                'CRITICAL': 'bold red',
+                'HIGH': 'red', 
+                'MEDIUM': 'yellow', 
+                'LOW': 'green', 
+                'INFO': 'blue'
+            }
+            
+            report += f"[{color_map[severity]}]{severity} Vulnerabilities: {len(vulns)}[/{color_map[severity]}]\n"
+            
+            # Add details for critical and high vulnerabilities
+            if severity in ['CRITICAL', 'HIGH']:
+                for vuln in vulns[:5]:  # Limit to top 5 to prevent overwhelm
+                    report += f"  • {vuln.get('description', 'Unspecified vulnerability')}\n"
+        
+        return report
+    
+    def interactive_scan(self):
+        """
+        Interactive scanning mode with guided user input
+        """
+        self.console.print("[bold blue]FireRFS Interactive Security Scanner[/bold blue]")
+        
+        # API Key Input
+        while True:
+            api_key = self.console.input("[bold]Enter Firebase API Key: [/bold]").strip()
+            if self.validate_api_key(api_key):
+                break
+            self.console.print("[bold red]Invalid API key. Please try again.[/bold red]")
+        
+        # Project ID (optional)
+        project_id = self.console.input("[bold]Enter Project ID (optional): [/bold]").strip() or None
+        
+        # Scanning Options
+        scan_mode = self.console.input(
+            "[bold]Select Scan Mode (quick/comprehensive) [default: comprehensive]: [/bold]"
+        ).strip().lower() or 'comprehensive'
+        
+        data_dump = self.console.input("[bold]Dump accessible data? (y/N): [/bold]").lower().strip() == 'y'
+        auto_exploit = self.console.input("[bold]Perform auto-exploitation? (y/N): [/bold]").lower().strip() == 'y'
+        
+        # Run assessment
+        assessment_options = {
+            'project_id': project_id,
+            'scan_mode': scan_mode,
+            'data_dump': data_dump,
+            'auto_exploit': auto_exploit
+        }
+        
+        results = self.run_security_assessment(api_key, assessment_options)
+        
+        if results:
+            # Display risk report
+            risk_report = self.generate_risk_report(results)
+            self.console.print(risk_report)
+        
+        return results
+
+def main():
+    """
+    Main entry point for FireRFS CLI
+    """
+    parser = argparse.ArgumentParser(description="FireRFS - Firebase Security Assessment Tool")
+    
+    # Core arguments
+    parser.add_argument("-k", "--api-key", help="Firebase API key")
+    parser.add_argument("-p", "--project-id", help="Firebase Project ID")
+    
+    # Scanning mode arguments
+    parser.add_argument("--interactive", action="store_true", help="Run in interactive mode")
+    parser.add_argument("--scan-mode", choices=['quick', 'comprehensive'], default='comprehensive', 
+                        help="Scanning depth and comprehensiveness")
+    
+    # Additional options
+    parser.add_argument("--data-dump", action="store_true", help="Dump accessible data")
+    parser.add_argument("--auto-exploit", action="store_true", help="Attempt to exploit vulnerabilities")
+    parser.add_argument("--config", help="Path to custom configuration file")
+    
+    # Parse arguments
+    args = parser.parse_args()
+    
+    # Initialize scanner
+    scanner = FireRFSScanner(args.config)
+    
+    try:
+        if args.interactive:
+            # Run interactive mode
+            results = scanner.interactive_scan()
         else:
-            # Default: Run standard assessment
-            console.print("[bold blue]Running standard assessment...[/bold blue]")
-            firerfs.run()
+            # Validate API key is provided
+            if not args.api_key:
+                console.print("[bold red]Error: API key is required[/bold red]")
+                parser.print_help()
+                return 1
+            
+            # Run security assessment
+            results = scanner.run_security_assessment(
+                args.api_key, 
+                {
+                    'project_id': args.project_id,
+                    'scan_mode': args.scan_mode,
+                    'data_dump': args.data_dump,
+                    'auto_exploit': args.auto_exploit
+                }
+            )
         
-        # Run auto-exploitation if enabled
-        if args.auto_exploit:
-            run_auto_exploitation(firerfs, args.exploit_critical_only)
-        
-        # Create archive if requested
-        if args.archive:
-            create_archive(firerfs)
-        
-        # Print completion message
-        console.print("\n[bold green]Assessment completed successfully[/bold green]")
-        console.print(f"[bold]Results saved to: {firerfs.output_dir}[/bold]")
-        
-        # Suggest next steps
-        console.print("\n[bold]Suggested next steps:[/bold]")
-        console.print("1. Review the generated reports for security findings")
-        console.print("2. Fix any identified vulnerabilities")
-        console.print("3. Re-run the assessment to verify fixes")
-        
-        return 0
-        
+        # Exit with appropriate status
+        return 0 if results else 1
+    
     except KeyboardInterrupt:
-        console.print("\n[yellow]Operation cancelled by user[/yellow]")
+        console.print("\n[yellow]Operation cancelled by user.[/yellow]")
         return 1
     except Exception as e:
-        console.print(f"\n[bold red]Error: {str(e)}[/bold red]")
-        import traceback
+        console.print(f"[bold red]Unexpected error: {e}[/bold red]")
         traceback.print_exc()
         return 1
 
