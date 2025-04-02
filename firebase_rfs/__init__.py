@@ -9,6 +9,21 @@ __email__ = "support@firerfs.com"
 
 from .firebase_rfs import FireRFS
 from .integration import FireRFSIntegration
-from .cli import main
 
-__all__ = ['FireRFS', 'FireRFSIntegration', 'main']
+# Import utility functions
+def create_archive(firerfs_instance):
+    """Create an archive of assessment results"""
+    # This is a placeholder function that will be implemented later
+    pass
+
+def run_auto_exploitation(firerfs_instance):
+    """Run automated exploitation based on discovered vulnerabilities"""
+    # This is a placeholder function that will be implemented later
+    pass
+
+__all__ = [
+    'FireRFS',
+    'FireRFSIntegration',
+    'create_archive',
+    'run_auto_exploitation',
+]

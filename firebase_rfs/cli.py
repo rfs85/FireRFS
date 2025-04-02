@@ -20,14 +20,10 @@ from rich.syntax import Syntax
 from rich.table import Table
 
 # Import core assessment modules
-try:
-    from firebase_rfs import FireRFS, FireRFSIntegration, create_archive, run_auto_exploitation
-except ImportError:
-    print("Error: Required modules not found. Ensure all project files are present.")
-    sys.exit(1)
+from . import FireRFS, FireRFSIntegration, create_archive, run_auto_exploitation, __version__
 
 # Version and configuration
-VERSION = "1.2.0"
+VERSION = __version__
 console = Console()
 
 class FireRFSCLI:
