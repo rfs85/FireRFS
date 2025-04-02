@@ -8,46 +8,69 @@ FireRFS is a cutting-edge security assessment tool designed to comprehensively a
 ![Version](https://img.shields.io/badge/version-1.2.0-blue)
 ![Python](https://img.shields.io/badge/python-3.8+-yellow)
 ![License](https://img.shields.io/badge/license-MIT-red)
+![Code Style](https://img.shields.io/badge/code%20style-black-black)
+![Security](https://img.shields.io/badge/security-bandit-green)
 
 ## 🌟 Key Features
 
 ### 🔬 Comprehensive Security Assessment
 - **Network Infrastructure Analysis**
-  - DNS Record Resolution
-  - SSL Certificate Inspection
+  - Advanced DNS Enumeration and Analysis
+  - SSL/TLS Configuration Assessment
   - WHOIS Information Lookup
-  - Multi-Domain Scanning
+  - Multi-Domain Scanning with Subdomain Discovery
+  - Cloud Infrastructure Security Checks
 
 - **Advanced Credential Discovery**
+  - AI-Powered Sensitive Information Detection
   - Recursive File System Scanning
-  - Sensitive Information Detection
-  - Regex-Based Credential Identification
-  - Configurable Scan Paths
+  - Advanced Pattern Matching for Credentials
+  - Git History Analysis
+  - Environment Variable Security Checks
 
 - **Database Security Evaluation**
   - Realtime Database Structure Analysis
-  - Firestore Collection & Document Inspection
-  - Sensitive Data Detection
-  - Vulnerability Identification
+  - Firestore Security Rules Assessment
+  - Data Privacy Compliance Checks
+  - Access Control Verification
+  - Backup Configuration Analysis
 
-### 🛡️ Vulnerability Detection
-- Identify exposed API keys
-- Detect overly permissive database rules
-- Uncover potential authentication weaknesses
-- Analyze network infrastructure vulnerabilities
+### 🛡️ Modern Security Features
+- **Cloud Configuration Analysis**
+  - Firebase Security Rules Validation
+  - Cloud Functions Security Assessment
+  - Storage Bucket Permission Analysis
+  - Authentication Methods Review
+  - API Gateway Security Checks
 
-### 📊 Detailed Reporting
-- Comprehensive security assessment reports
-- Vulnerability categorization
-- Service-specific analysis
-- Exposed credentials summary
+- **Compliance & Best Practices**
+  - GDPR Compliance Checks
+  - OWASP Top 10 Alignment
+  - CIS Benchmark Validation
+  - Security Headers Analysis
+  - Rate Limiting Configuration Review
+
+### 📊 Enhanced Reporting
+- Interactive HTML Reports
+- JSON/CSV Export Options
+- Severity-based Issue Prioritization
+- Remediation Recommendations
+- Executive Summary Generation
 
 ## 🔧 Installation
 
 ### Prerequisites
 - Python 3.8+
 - Firebase Project
-- Firebase API Key
+- Firebase Admin SDK Credentials
+- System Dependencies:
+  ```bash
+  # Ubuntu/Debian
+  sudo apt-get install python3-dev libssl-dev nmap
+
+  # macOS
+  brew install openssl nmap
+  ```
 
 ### Setup
 ```bash
@@ -56,85 +79,134 @@ git clone https://github.com/yourusername/firerfs.git
 cd firerfs
 
 # Create virtual environment
-python3 -m venv venv
+python -m venv venv
+
+# Activate virtual environment
+# On Windows
+.\\venv\\Scripts\\activate
+# On Unix/macOS
 source venv/bin/activate
 
 # Install dependencies
 pip install -r requirements.txt
+
+# Install development dependencies
+pip install -r requirements-dev.txt
 ```
 
 ## 💻 Usage Examples
 
 ### Basic Security Assessment
 ```bash
-# Standard security scan
-python firebase_rfs.py -k YOUR_FIREBASE_API_KEY -p YOUR_PROJECT_ID
+# Quick security scan
+python -m firebase_rfs scan -k YOUR_API_KEY -m quick
+
+# Comprehensive assessment
+python -m firebase_rfs scan -k YOUR_API_KEY -m comprehensive --report-format html
+
+# Continuous monitoring
+python -m firebase_rfs monitor -k YOUR_API_KEY --interval 12h
 ```
 
-### Advanced Scanning Modes
+### Advanced Features
 ```bash
-# Deep security scan
-python firebase_rfs.py -k YOUR_API_KEY --deep-scan
+# Custom rule validation
+python -m firebase_rfs rules validate -f rules.json
 
-# Extensive credential discovery
-python firebase_rfs.py -k YOUR_API_KEY --credential-scan
+# Cloud function security audit
+python -m firebase_rfs functions audit -p PROJECT_ID
 
-# Specify custom output directory
-python firebase_rfs.py -k YOUR_API_KEY -o /path/to/results
+# Database security assessment
+python -m firebase_rfs db assess --deep-scan
 ```
 
-## 🕵️ Scanning Capabilities
+## 🔍 Advanced Configuration
 
-### 1. Network Reconnaissance
-- Domain DNS record analysis
-- SSL certificate verification
-- WHOIS information gathering
-- IP address resolution
+### Custom Rules
+Create a `config.yaml` file:
+```yaml
+scan_rules:
+  database:
+    - check_public_access
+    - validate_auth_rules
+    - scan_sensitive_data
+  storage:
+    - check_cors_config
+    - validate_bucket_permissions
+  functions:
+    - audit_dependencies
+    - check_runtime_config
+```
 
-### 2. Credential Exposure
-- Scan for exposed API keys
-- Detect sensitive configuration files
-- Identify potential credential leaks
+### CI/CD Integration
+```yaml
+# GitHub Actions Example
+name: FireRFS Security Scan
+on: [push, pull_request]
 
-### 3. Database Security
-- Analyze Realtime Database structure
-- Inspect Firestore collections
-- Detect sensitive data exposure
-- Evaluate database access rules
+jobs:
+  security_scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.8'
+      - name: Install FireRFS
+        run: pip install -r requirements.txt
+      - name: Run Security Scan
+        run: python -m firebase_rfs scan -k ${{ secrets.FIREBASE_API_KEY }} --ci
+```
 
-### 4. Authentication Analysis
-- Check authentication mechanisms
-- Identify weak authentication patterns
-- Assess user management security
+## 🧪 Testing
 
-## 🚨 Vulnerability Categories
+```bash
+# Run unit tests
+pytest tests/
 
-- **Critical**: Severe security risks requiring immediate attention
-- **High**: Significant vulnerabilities with potential impact
-- **Medium**: Moderate security concerns
-- **Low**: Minor security improvements suggested
+# Run security checks
+bandit -r firebase_rfs/
+safety check
 
-## 🛠️ Configuration
+# Run type checks
+mypy firebase_rfs/
 
-### Customization Options
-- Configurable scan depths
-- Custom scanning paths
-- Selective service testing
-- Output format customization
+# Run style checks
+black firebase_rfs/
+flake8 firebase_rfs/
+```
+
+## 📈 Roadmap
+
+- [ ] AI-powered vulnerability detection
+- [ ] Real-time threat monitoring
+- [ ] Custom rule engine
+- [ ] Cloud function vulnerability scanning
+- [ ] Automated remediation suggestions
 
 ## 🤝 Contributing
 
 1. Fork the repository
 2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+3. Run tests (`pytest`)
+4. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+5. Push to the branch (`git push origin feature/AmazingFeature`)
+6. Open a Pull Request
+
+### Development Guidelines
+- Follow Black code style
+- Add type hints to all new code
+- Write unit tests for new features
+- Update documentation as needed
 
 ## ⚠️ Disclaimer
 
-- Use only on systems you own or have explicit permission to test
-- Comply with all legal and ethical guidelines
-- Treat discovered information confidentially
+This tool is for authorized security testing only. Users must:
+- Obtain explicit permission before testing any systems
+- Comply with all applicable laws and regulations
+- Handle discovered information responsibly
+- Follow responsible disclosure practices
 
 ## 📄 License
 
@@ -142,15 +214,17 @@ Distributed under the MIT License. See `LICENSE` for more information.
 
 ## 🏆 Credits
 
-Developed by [Your Name/Organization]
-Inspired by the need for comprehensive Firebase security assessment
+Developed and maintained by the FireRFS Team
+Contributors: [List of major contributors]
 
-## 📞 Support
+## 📞 Support & Community
 
-For issues, questions, or suggestions:
-- Open a GitHub Issue
+- GitHub Issues: Bug reports and feature requests
+- Discord: [Join our community](https://discord.gg/firerfs)
+- Documentation: [Read the docs](https://docs.firerfs.com)
 - Email: support@firerfs.com
 
 ---
 
-### Star ⭐ the Repo if This Tool Helped You!
+### ⭐ Star us on GitHub
+If FireRFS has helped secure your Firebase projects, consider starring the repository to help others find it!
