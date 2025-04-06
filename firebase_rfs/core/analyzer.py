@@ -11,6 +11,8 @@ import time
 from datetime import datetime
 import json
 import shutil
+import logging
+from typing import Dict, List, Any
 
 # Import the console for rich output
 from rich.console import Console
@@ -25,6 +27,8 @@ SEVERITY_ORDER_MAP = {
     "LOW": 3,
     "INFO": 4
 }
+
+logger = logging.getLogger(__name__)
 
 def create_archive(firerfs):
     """Create a ZIP archive of all results"""
@@ -101,6 +105,153 @@ def run_auto_exploitation(firerfs, target_only=False):
     firerfs.console.print(f"[dim]Results saved to {results_file}[/dim]")
     
     return exploitation_results
+
+class SecurityAnalyzer:
+    """Analyzes Firebase security assessment results."""
+    
+    def __init__(self):
+        """Initialize the security analyzer."""
+        self.risk_levels = {
+            "critical": 4,
+            "high": 3,
+            "medium": 2,
+            "low": 1,
+            "info": 0
+        }
+    
+    def analyze_results(self, results: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Analyze security assessment results and generate insights.
+        
+        Args:
+            results: Dictionary containing assessment results
+        
+        Returns:
+            Dict containing analysis results and recommendations
+        """
+        analysis = {
+            "summary": self._generate_summary(results),
+            "risk_score": self._calculate_risk_score(results),
+            "vulnerabilities": self._analyze_vulnerabilities(results),
+            "recommendations": self._generate_recommendations(results),
+            "metadata": {
+                "analyzed_at": datetime.now().isoformat(),
+                "risk_level": self._determine_risk_level(results)
+            }
+        }
+        
+        return analysis
+    
+    def _generate_summary(self, results: Dict[str, Any]) -> Dict[str, Any]:
+        """Generate an executive summary of the security assessment."""
+        api_key_status = results.get("api_key", {}).get("status", "unknown")
+        services = results.get("services", {})
+        vulnerabilities = results.get("vulnerabilities", {}).get("vulnerabilities", [])
+        
+        accessible_services = [
+            service for service, status in services.items()
+            if status.get("accessible", False)
+        ]
+        
+        return {
+            "api_key_valid": api_key_status == "success",
+            "accessible_services": accessible_services,
+            "total_vulnerabilities": len(vulnerabilities),
+            "critical_vulnerabilities": len([v for v in vulnerabilities if v["severity"] == "critical"]),
+            "high_vulnerabilities": len([v for v in vulnerabilities if v["severity"] == "high"]),
+            "medium_vulnerabilities": len([v for v in vulnerabilities if v["severity"] == "medium"]),
+            "low_vulnerabilities": len([v for v in vulnerabilities if v["severity"] == "low"])
+        }
+    
+    def _calculate_risk_score(self, results: Dict[str, Any]) -> float:
+        """Calculate overall risk score based on findings."""
+        vulnerabilities = results.get("vulnerabilities", {}).get("vulnerabilities", [])
+        
+        if not vulnerabilities:
+            return 0.0
+        
+        # Weight vulnerabilities by severity
+        weighted_sum = sum(
+            self.risk_levels[v["severity"]] for v in vulnerabilities
+        )
+        
+        # Normalize score to 0-10 range
+        max_possible = len(vulnerabilities) * self.risk_levels["critical"]
+        normalized_score = (weighted_sum / max_possible) * 10
+        
+        return round(normalized_score, 2)
+    
+    def _analyze_vulnerabilities(self, results: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """Analyze and categorize vulnerabilities."""
+        vulnerabilities = results.get("vulnerabilities", {}).get("vulnerabilities", [])
+        
+        # Group vulnerabilities by severity
+        categorized = {
+            "critical": [],
+            "high": [],
+            "medium": [],
+            "low": [],
+            "info": []
+        }
+        
+        for vuln in vulnerabilities:
+            severity = vuln.get("severity", "low").lower()
+            if severity in categorized:
+                categorized[severity].append(vuln)
+        
+        # Sort vulnerabilities by severity and add priority
+        analyzed_vulns = []
+        for severity in ["critical", "high", "medium", "low", "info"]:
+            for index, vuln in enumerate(categorized[severity], 1):
+                analyzed_vulns.append({
+                    **vuln,
+                    "priority": index,
+                    "risk_score": self.risk_levels[severity] * 2.5  # Scale to 0-10
+                })
+        
+        return analyzed_vulns
+    
+    def _generate_recommendations(self, results: Dict[str, Any]) -> List[str]:
+        """Generate security recommendations based on findings."""
+        recommendations = set()
+        
+        # Add recommendations from vulnerabilities
+        for vuln in results.get("vulnerabilities", {}).get("vulnerabilities", []):
+            if "recommendation" in vuln:
+                recommendations.add(vuln["recommendation"])
+        
+        # Add service-specific recommendations
+        services = results.get("services", {})
+        for service, status in services.items():
+            if status.get("accessible", False):
+                recommendations.add(
+                    f"Review and restrict access to {service} service using appropriate security rules"
+                )
+        
+        # Add API key recommendations
+        api_key_results = results.get("api_key", {})
+        if api_key_results.get("status") == "success":
+            if api_key_results.get("restrictions", {}).get("server", False):
+                recommendations.add(
+                    "Configure API key restrictions to limit access to authorized domains and applications"
+                )
+        
+        return sorted(list(recommendations))
+    
+    def _determine_risk_level(self, results: Dict[str, Any]) -> str:
+        """Determine overall risk level based on findings."""
+        risk_score = self._calculate_risk_score(results)
+        
+        if risk_score >= 8.0:
+            return "critical"
+        elif risk_score >= 6.0:
+            return "high"
+        elif risk_score >= 4.0:
+            return "medium"
+        elif risk_score > 0:
+            return "low"
+        else:
+            return "info"
 
 class FireRFSIntegration:
     """FireRFS Integration Class"""

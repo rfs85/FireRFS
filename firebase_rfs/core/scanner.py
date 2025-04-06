@@ -12,6 +12,13 @@ import json
 from datetime import datetime
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TimeElapsedColumn
+import logging
+import requests
+from typing import Dict, List, Any, Optional
+from pathlib import Path
+
+from firebase_rfs.utils.helpers import validate_api_key, validate_project_id
+from firebase_rfs.utils.reporting import ReportGenerator
 
 # Define constants
 VERSION = "1.1.0"
@@ -22,6 +29,237 @@ SEVERITY_ORDER_MAP = {
     "LOW": 3,
     "INFO": 4
 }
+
+logger = logging.getLogger(__name__)
+
+class FirebaseScanner:
+    """Main scanner class for Firebase security assessment."""
+    
+    def __init__(
+        self,
+        api_key: str,
+        project_id: Optional[str] = None,
+        timeout: int = 30
+    ):
+        """
+        Initialize the Firebase scanner.
+        
+        Args:
+            api_key: Firebase API key
+            project_id: Optional Firebase project ID
+            timeout: Request timeout in seconds
+        """
+        if not validate_api_key(api_key):
+            raise ValueError("Invalid Firebase API key format")
+        
+        if project_id and not validate_project_id(project_id):
+            raise ValueError("Invalid Firebase project ID format")
+        
+        self.api_key = api_key
+        self.project_id = project_id
+        self.timeout = timeout
+        self.base_url = "https://firebaseio.com"
+        self.report_generator = ReportGenerator()
+    
+    def check_api_key_restrictions(self) -> Dict[str, Any]:
+        """
+        Check API key restrictions and allowed domains.
+        
+        Returns:
+            Dict containing API key restriction details
+        """
+        logger.info("Checking API key restrictions...")
+        
+        try:
+            # Test API key against different Firebase services
+            services = {
+                "database": f"{self.base_url}/.json?auth={self.api_key}",
+                "storage": f"https://firebasestorage.googleapis.com/v0/b/{self.project_id}.appspot.com/o?auth={self.api_key}" if self.project_id else None,
+                "firestore": f"https://firestore.googleapis.com/v1/projects/{self.project_id}/databases/(default)/documents?key={self.api_key}" if self.project_id else None
+            }
+            
+            results = {
+                "status": "success",
+                "restrictions": {
+                    "android": False,
+                    "ios": False,
+                    "browser": [],
+                    "server": False
+                },
+                "findings": []
+            }
+            
+            # Test each service
+            for service_name, url in services.items():
+                if url:
+                    try:
+                        response = requests.get(url, timeout=self.timeout)
+                        if response.status_code == 200:
+                            results["restrictions"]["server"] = True
+                            results["findings"].append({
+                                "severity": "medium",
+                                "title": f"Unrestricted {service_name.title()} Access",
+                                "description": f"The API key has unrestricted access to Firebase {service_name}.",
+                                "recommendation": f"Add appropriate restrictions for {service_name} access in the Firebase Console."
+                            })
+                    except requests.exceptions.RequestException as e:
+                        logger.warning(f"Error testing {service_name}: {str(e)}")
+            
+            return results
+            
+        except Exception as e:
+            logger.error(f"Error checking API key restrictions: {str(e)}")
+            return {
+                "status": "error",
+                "message": str(e)
+            }
+    
+    def check_service_accessibility(self) -> Dict[str, Any]:
+        """
+        Check accessibility of various Firebase services.
+        
+        Returns:
+            Dict containing service accessibility status
+        """
+        logger.info("Checking service accessibility...")
+        
+        services = {
+            "firestore": "https://firestore.googleapis.com/v1/",
+            "storage": "https://storage.googleapis.com/",
+            "database": "https://firebaseio.com/",
+            "functions": "https://cloudfunctions.googleapis.com/v1/",
+            "hosting": "https://firebasehosting.googleapis.com/v1beta1/"
+        }
+        
+        results = {}
+        
+        for service_name, base_url in services.items():
+            try:
+                url = f"{base_url}?key={self.api_key}"
+                response = requests.get(url, timeout=self.timeout)
+                
+                results[service_name] = {
+                    "accessible": response.status_code != 403,
+                    "status_code": response.status_code,
+                    "requires_auth": response.status_code == 401
+                }
+                
+                if results[service_name]["accessible"]:
+                    logger.warning(f"{service_name} appears to be accessible")
+            except requests.exceptions.RequestException as e:
+                logger.error(f"Error checking {service_name}: {str(e)}")
+                results[service_name] = {
+                    "accessible": False,
+                    "error": str(e)
+                }
+        
+        return results
+    
+    def analyze_security_rules(self, rules: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """
+        Analyze Firebase security rules for vulnerabilities.
+        
+        Args:
+            rules: Optional dictionary containing security rules to analyze
+                  If not provided, attempts to fetch rules if project_id is available
+        
+        Returns:
+            Dict containing security rule analysis results
+        """
+        logger.info("Analyzing security rules...")
+        
+        findings = []
+        
+        if not rules and self.project_id:
+            # Attempt to fetch rules if not provided
+            try:
+                url = f"https://firebasestorage.googleapis.com/v0/b/{self.project_id}.appspot.com/o/.settings/rules.json?alt=media&key={self.api_key}"
+                response = requests.get(url, timeout=self.timeout)
+                if response.status_code == 200:
+                    rules = response.json()
+            except requests.exceptions.RequestException as e:
+                logger.error(f"Error fetching security rules: {str(e)}")
+        
+        if rules:
+            # Check for common security issues
+            if ".read" in str(rules) and "true" in str(rules[".read"]):
+                findings.append({
+                    "severity": "high",
+                    "title": "Public Read Access",
+                    "description": "Database allows public read access without authentication",
+                    "recommendation": "Implement proper authentication checks in security rules"
+                })
+            
+            if ".write" in str(rules) and "true" in str(rules[".write"]):
+                findings.append({
+                    "severity": "critical",
+                    "title": "Public Write Access",
+                    "description": "Database allows public write access without authentication",
+                    "recommendation": "Implement proper authentication and validation in security rules"
+                })
+        
+        return {
+            "findings": findings,
+            "rules_analyzed": bool(rules)
+        }
+    
+    def scan_vulnerabilities(self, mode: str = "quick") -> Dict[str, Any]:
+        """
+        Scan for common Firebase vulnerabilities.
+        
+        Args:
+            mode: Scan mode ('quick' or 'comprehensive')
+        
+        Returns:
+            Dict containing vulnerability scan results
+        """
+        logger.info(f"Starting {mode} vulnerability scan...")
+        
+        vulnerabilities = []
+        
+        # Basic vulnerability checks
+        if not self.project_id:
+            vulnerabilities.append({
+                "severity": "info",
+                "title": "Limited Scan Scope",
+                "description": "No project ID provided, limiting scan capabilities",
+                "recommendation": "Provide project ID for comprehensive scanning"
+            })
+        
+        # Check for common misconfigurations
+        service_results = self.check_service_accessibility()
+        for service, status in service_results.items():
+            if status.get("accessible", False):
+                vulnerabilities.append({
+                    "severity": "medium",
+                    "title": f"Exposed {service.title()} Service",
+                    "description": f"{service.title()} service is publicly accessible",
+                    "recommendation": f"Review and restrict {service} access controls"
+                })
+        
+        # Additional checks for comprehensive mode
+        if mode == "comprehensive" and self.project_id:
+            # Add more detailed vulnerability checks here
+            pass
+        
+        return {
+            "vulnerabilities": vulnerabilities,
+            "scan_mode": mode,
+            "timestamp": datetime.now().isoformat()
+        }
+    
+    def generate_report(self, results: Dict[str, Any], output_dir: str) -> str:
+        """
+        Generate a security assessment report.
+        
+        Args:
+            results: Dictionary containing assessment results
+            output_dir: Directory to save the report
+        
+        Returns:
+            str: Path to the generated report file
+        """
+        return self.report_generator.generate_html_report(results, output_dir)
 
 class FireRFS:
     """Firebase reconnaissance and security testing tool main class"""

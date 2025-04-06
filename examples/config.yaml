@@ -1,19 +1,50 @@
-# FireRFS Example Configuration
+# FireRFS Configuration Example
+# Save this file as config.yaml and customize according to your needs
 
-# Scan settings
-scan_settings:
-  timeout: 30  # Timeout in seconds for each test
-  max_depth: 5  # Maximum depth for recursive scans
-  parallel: true  # Enable parallel scanning
-  retry_attempts: 3  # Number of retry attempts for failed requests
+# Authentication
+api_key: YOUR_API_KEY
+project_id: YOUR_PROJECT_ID  # Optional
 
-# Target services to scan
+# Scan Configuration
+scan_mode: comprehensive  # Options: quick, comprehensive
+timeout: 30  # Request timeout in seconds
+
+# Services to Test
 services:
-  - firestore
-  - storage
-  - database
-  - functions
-  - hosting
+  - database    # Firebase Realtime Database
+  - firestore   # Cloud Firestore
+  - storage     # Cloud Storage
+  - functions   # Cloud Functions
+  - hosting     # Firebase Hosting
+  - auth        # Authentication Service
+
+# Output Configuration
+output:
+  format: html      # Options: html, json, text
+  directory: scan_results
+  detailed: true    # Include detailed findings
+  data_dump: false  # Extract accessible data
+
+# Advanced Options
+advanced:
+  retry_attempts: 3
+  concurrent_requests: 5
+  follow_references: true
+  max_depth: 3
+
+# Custom Rules
+rules:
+  max_severity: critical  # Options: critical, high, medium, low, info
+  ignore_warnings: false
+  custom_checks:
+    - name: api_key_rotation
+      enabled: true
+      threshold_days: 90
+    - name: public_access
+      enabled: true
+      services:
+        - database
+        - storage
 
 # Security rules to check
 security_rules:

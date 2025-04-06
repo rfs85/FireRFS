@@ -101,13 +101,180 @@ Reports are saved in the `firerfs_results_[timestamp]` directory.
 
 ## 🛡️ Security Features
 
-- API Key Validation
-- Service Access Control Analysis
-- Security Rules Assessment
-- Data Exposure Detection
-- Authentication Configuration Review
-- Network Security Analysis
-- Custom Security Policies
+FireRFS provides comprehensive security assessment capabilities for Firebase applications:
+
+- API Key Analysis
+  - Validation and restriction checks
+  - Service access permissions
+  - Domain restrictions
+
+- Service Accessibility Testing
+  - Realtime Database
+  - Cloud Firestore
+  - Cloud Storage
+  - Cloud Functions
+  - Firebase Hosting
+
+- Security Rules Analysis
+  - Public access detection
+  - Authentication requirements
+  - Data validation rules
+  - Custom rules evaluation
+
+- Vulnerability Scanning
+  - Common misconfigurations
+  - Security best practices
+  - Access control issues
+  - Data exposure risks
+
+## 📚 Usage Guide
+
+### Installation
+
+```bash
+# Clone the repository
+git clone https://github.com/yourusername/FireRFS.git
+cd FireRFS
+
+# Install the package in development mode
+pip install -e .
+```
+
+### Basic Usage
+
+1. **Command Line Interface**
+
+```bash
+# Quick scan with API key
+python -m firebase_rfs.cli -k YOUR_API_KEY --scan-mode quick
+
+# Comprehensive scan with project ID
+python -m firebase_rfs.cli -k YOUR_API_KEY -p YOUR_PROJECT_ID --scan-mode comprehensive
+
+# Interactive mode
+python -m firebase_rfs.cli --interactive
+```
+
+2. **Python API**
+
+```python
+from firebase_rfs import FirebaseScanner, SecurityAnalyzer
+
+# Initialize scanner
+scanner = FirebaseScanner(
+    api_key="YOUR_API_KEY",
+    project_id="YOUR_PROJECT_ID"  # Optional
+)
+
+# Run security checks
+api_key_results = scanner.check_api_key_restrictions()
+service_results = scanner.check_service_accessibility()
+security_rules = scanner.analyze_security_rules()
+vulnerabilities = scanner.scan_vulnerabilities(mode="quick")
+
+# Analyze results
+analyzer = SecurityAnalyzer()
+analysis = analyzer.analyze_results({
+    "api_key": api_key_results,
+    "services": service_results,
+    "security_rules": security_rules,
+    "vulnerabilities": vulnerabilities
+})
+
+# Generate report
+scanner.generate_report(
+    results={"analysis": analysis, ...},
+    output_dir="scan_results"
+)
+```
+
+### Configuration
+
+You can customize the scan using a configuration file:
+
+```yaml
+# config.yaml
+api_key: YOUR_API_KEY
+project_id: YOUR_PROJECT_ID
+scan_mode: comprehensive
+services:
+  - database
+  - firestore
+  - storage
+output:
+  format: html
+  directory: scan_results
+```
+
+Then run with:
+```bash
+python -m firebase_rfs.cli --config config.yaml
+```
+
+### Scan Modes
+
+1. **Quick Scan** (`--scan-mode quick`)
+   - Basic API key validation
+   - Service accessibility checks
+   - Common security misconfigurations
+   - Fast execution (< 1 minute)
+
+2. **Comprehensive Scan** (`--scan-mode comprehensive`)
+   - Detailed API key analysis
+   - In-depth service testing
+   - Security rules evaluation
+   - Data exposure checks
+   - Thorough vulnerability assessment
+   - Longer execution time (5-10 minutes)
+
+### Output
+
+The tool generates several output files:
+
+1. **HTML Report**
+   - Executive summary
+   - Detailed findings
+   - Risk analysis
+   - Recommendations
+
+2. **JSON Results**
+   - Raw scan data
+   - Vulnerability details
+   - Service configurations
+   - Security rules analysis
+
+3. **Terminal Output**
+   - Real-time scan progress
+   - Critical findings
+   - Summary statistics
+
+### Example Scripts
+
+Check the `examples/` directory for more usage examples:
+
+- `basic_scan.py`: Simple security assessment
+- `custom_rules.py`: Security rules analysis
+- `data_discovery.py`: Data exposure checks
+- `continuous_monitoring.py`: Automated scanning
+
+## 🔒 Security Best Practices
+
+When using FireRFS:
+
+1. **API Key Safety**
+   - Use restricted API keys
+   - Never commit keys to source control
+   - Rotate keys regularly
+
+2. **Scanning Considerations**
+   - Start with quick scans
+   - Run comprehensive scans during off-peak hours
+   - Monitor resource usage
+
+3. **Compliance**
+   - Ensure you have authorization
+   - Follow security policies
+   - Document all testing activities
 
 ## 🧪 Development
 
